@@ -3,6 +3,13 @@ import { useClientCsv } from "@/hooks/useClientCsv";
 import { useDashboardStore } from "@/store/useDashboardStore";
 import { sliceByRange, statsOf, type RangeKey } from "@/lib/timeRange";
 import TimeSeriesChart from "@/components/TimeSeriesChart";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const RANGE_OPTS: { key: RangeKey; label: string }[] = [
   { key: "15m", label: "15 minutes" },
@@ -61,23 +68,28 @@ export default function TimeSeries() {
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="text-sm text-muted-foreground">Parameter:</div>
-        <select
-          className="border rounded-md px-3 py-2"
-          value={selected ?? ""}
-          onChange={(e) => setSelected(e.target.value)}
-          disabled={!columns.length}
-        >
-          {columns.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <Select value={selected ?? ""} onValueChange={(v) => setSelected(v)} disabled={!columns.length}>
+          <SelectTrigger className="w-[320px]">
+            <SelectValue placeholder="Select parameter" />
+          </SelectTrigger>
+          <SelectContent>
+            {columns.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <div className="text-sm text-muted-foreground ml-2">Time Range:</div>
-        <select
-          className="border rounded-md px-3 py-2"
-          value={range}
-          onChange={(e) => setRange(e.target.value as RangeKey)}
-        >
-          {RANGE_OPTS.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
-        </select>
+        <Select value={range} onValueChange={(v) => setRange(v as RangeKey)}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Range" />
+          </SelectTrigger>
+          <SelectContent>
+            {RANGE_OPTS.map((r) => (
+              <SelectItem key={r.key} value={r.key}>{r.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">
