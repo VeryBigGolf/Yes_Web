@@ -1,8 +1,8 @@
 import { useClientCsv } from "@/hooks/useClientCsv";
-import { THRESHOLDS } from "@/lib/thresholds";
 import { KpiCard } from "@/components/KpiCard";
 import { useSuggestions } from "@/hooks/useSuggestions";
 import SuggestionCard from "@/components/SuggestionCard";
+import { sliceByRange } from "@/lib/timeRange";
 import { useMemo } from "react";
 import { useDashboardStore } from "@/store/useDashboardStore";
 
@@ -16,17 +16,20 @@ const KPI_KEYS = [
 ];
 
 export default function Overview() {
-  const { columns, byFeature, loading, error } = useClientCsv();
+  const { columns, byFeature, latestISO, loading, error } = useClientCsv();
   const { data: suggestions, loading: sugLoading, error: sugError } = useSuggestions();
   const { setCurrentPage, setSelectedFeature } = useDashboardStore();
 
   const kpis = useMemo(() => {
+    const anchorNow = new Date().toISOString();
     return KPI_KEYS.map((key) => {
       const arr = byFeature.get(key) ?? [];
       const latest = arr.length ? arr[arr.length - 1].v : null;
-      return { key, data: arr, latest };
+      // Use smart time slicing for sparkline data (last 1h with fallback)
+      const { data: lastHour } = sliceByRange(arr, "1h", anchorNow, latestISO ?? undefined);
+      return { key, data: lastHour, latest };
     });
-  }, [byFeature]);
+  }, [byFeature, latestISO]);
 
   return (
     <div className="space-y-4">

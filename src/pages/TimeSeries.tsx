@@ -1,46 +1,46 @@
+import { useEffect, useMemo } from "react";
 import { useClientCsv } from "@/hooks/useClientCsv";
-import { TimeSeriesChart } from "@/components/TimeSeriesChart";
-import { useState, useMemo, useEffect } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDashboardStore } from "@/store/useDashboardStore";
+import { sliceByRange, statsOf, type RangeKey } from "@/lib/timeRange";
+import TimeSeriesChart from "@/components/TimeSeriesChart";
 
-const TIME_RANGES = [
-  { value: '15m', label: '15 minutes' },
-  { value: '1h', label: '1 hour' },
-  { value: '8h', label: '8 hours' },
-  { value: '24h', label: '24 hours' },
-  { value: 'all', label: 'All data' },
+const RANGE_OPTS: { key: RangeKey; label: string }[] = [
+  { key: "15m", label: "15 minutes" },
+  { key: "1h",  label: "1 hour" },
+  { key: "8h",  label: "8 hours" },
+  { key: "24h", label: "24 hours" },
+  { key: "all", label: "All data" },
 ];
 
 export default function TimeSeries() {
-  const { columns, byFeature, loading, error } = useClientCsv();
-  const { selectedFeature } = useDashboardStore();
-  const [selected, setSelected] = useState<string>(selectedFeature || "MAIN STEAM PRESSURE");
-  const [timeRange, setTimeRange] = useState<string>("1h");
+  const { columns, byFeature, latestISO, loading, error } = useClientCsv();
 
-  // Update selected when selectedFeature changes (from Suggestions)
+  const selected = useDashboardStore(s => s.selectedFeature);
+  const setSelected = useDashboardStore(s => s.setSelectedFeature);
+  const range = useDashboardStore(s => s.timeRange);
+  const setRange = useDashboardStore(s => s.setTimeRange);
+
+  // default selection = first column once loaded
   useEffect(() => {
-    if (selectedFeature) {
-      setSelected(selectedFeature);
-    }
-  }, [selectedFeature]);
+    if (!selected && columns.length) setSelected(columns[0]);
+  }, [columns, selected, setSelected]);
 
-  const data = useMemo(() => {
-    const allData = byFeature.get(selected) ?? [];
-    
-    if (timeRange === "all") return allData;
-    
-    const now = new Date();
-    const rangeMs = {
-      "15m": 15 * 60 * 1000,
-      "1h": 60 * 60 * 1000,
-      "8h": 8 * 60 * 60 * 1000,
-      "24h": 24 * 60 * 60 * 1000,
-    }[timeRange] || 60 * 60 * 1000;
-    
-    const cutoff = new Date(now.getTime() - rangeMs);
-    return allData.filter(point => new Date(point.t) >= cutoff);
-  }, [byFeature, selected, timeRange]);
+  const full = useMemo(
+    () => (selected ? (byFeature.get(selected) ?? []) : []),
+    [byFeature, selected]
+  );
+
+  const { data: series, usedFallback, anchorUsed } = useMemo(() => {
+    const anchorNow = new Date().toISOString();
+    return sliceByRange(full, range, anchorNow, latestISO ?? undefined);
+  }, [full, range, latestISO]);
+
+  const filtered = useMemo(
+    () => series.filter(p => Number.isFinite(p.v)),
+    [series]
+  );
+
+  const stats = useMemo(() => statsOf(filtered), [filtered]);
 
   return (
     <div className="space-y-4">
@@ -49,56 +49,61 @@ export default function TimeSeries() {
           CSV load failed: {String(error)}
         </div>
       )}
-      
-      {!loading && !error && (
-        <div className="rounded-md border border-blue-500/40 bg-blue-500/10 p-3 text-blue-300">
-          📊 Showing first day data from CSV
+
+      {range !== "all" && (
+        <div className="rounded-xl border bg-indigo-500/10 border-indigo-500/30 p-3 text-sm">
+          {usedFallback
+            ? <>Showing <b>{RANGE_OPTS.find(r => r.key === range)?.label}</b> ending at CSV latest (<code>{anchorUsed}</code>).</>
+            : <>Showing <b>{RANGE_OPTS.find(r => r.key === range)?.label}</b> ending now (<code>{anchorUsed}</code>).</>
+          }
         </div>
       )}
-      
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <label htmlFor="parameter-select" className="text-sm font-medium">
-            Parameter:
-          </label>
-          <Select value={selected} onValueChange={setSelected}>
-            <SelectTrigger id="parameter-select" className="w-64">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {columns.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <label htmlFor="time-range" className="text-sm font-medium">
-            Time Range:
-          </label>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger id="time-range" className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TIME_RANGES.map((range) => (
-                <SelectItem key={range.value} value={range.value}>
-                  {range.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="text-sm text-muted-foreground">Parameter:</div>
+        <select
+          className="border rounded-md px-3 py-2"
+          value={selected ?? ""}
+          onChange={(e) => setSelected(e.target.value)}
+          disabled={!columns.length}
+        >
+          {columns.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        <div className="text-sm text-muted-foreground ml-2">Time Range:</div>
+        <select
+          className="border rounded-md px-3 py-2"
+          value={range}
+          onChange={(e) => setRange(e.target.value as RangeKey)}
+        >
+          {RANGE_OPTS.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+        </select>
       </div>
 
-      <TimeSeriesChart 
-        feature={selected as any} 
-        data={data} 
-        loading={loading} 
+      <div className="grid gap-3 md:grid-cols-4">
+        {["Min","Max","Mean","Latest"].map((lbl, i) => {
+          const val = [stats.min, stats.max, stats.mean, stats.latest][i];
+          return (
+            <div key={lbl} className="rounded-xl border px-4 py-3">
+              <div className="text-xs text-muted-foreground">{lbl}</div>
+              <div className="mt-1 text-xl font-semibold">{val == null ? "N/A" : Number(val).toFixed(2)}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <TimeSeriesChart
+        key={`${selected ?? "none"}-${range}`}   // force redraw when feature/range changes
+        title={selected ?? "—"}
+        data={filtered}
+        loading={loading}
       />
+
+      {!loading && selected && filtered.length === 0 && (
+        <div className="text-sm text-muted-foreground">
+          No data available for the selected time range.
+        </div>
+      )}
     </div>
   );
 }

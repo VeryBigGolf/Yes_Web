@@ -20,6 +20,7 @@ const navigation = [
   { id: 'time-series', label: 'Time Series', icon: TrendingUp },
   { id: 'suggestions', label: 'Suggestions', icon: Lightbulb },
   { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'debug', label: 'Debug', icon: Settings },
 ]
 
 export function Sidebar() {

@@ -21,18 +21,20 @@ export function useClientCsv(src: string = "/Boiler11_1.csv") {
       header: true,
       dynamicTyping: false, // we'll coerce ourselves
       skipEmptyLines: true,
-      complete: (res) => {
-        if (!alive) return;
-        if (res.errors?.length) {
-          console.error("CSV parse errors:", res.errors);
-        }
-        const recs = (res.data as any[]).filter(Boolean);
-        if (recs.length === 0) {
-          setRows([]);
-          setColumns([]);
-          setLoading(false);
-          return;
-        }
+              complete: (res) => {
+                if (!alive) return;
+                console.log("CSV parse complete:", res);
+                if (res.errors?.length) {
+                  console.error("CSV parse errors:", res.errors);
+                }
+                const recs = (res.data as any[]).filter(Boolean);
+                console.log("Filtered records:", recs.length);
+                if (recs.length === 0) {
+                  setRows([]);
+                  setColumns([]);
+                  setLoading(false);
+                  return;
+                }
         // Coerce numbers (all except 'Time')
         const out = recs.map((r) => {
           const o: Row = {};
@@ -47,21 +49,22 @@ export function useClientCsv(src: string = "/Boiler11_1.csv") {
           }
           return o;
         });
-        setRows(out);
-        setColumns(Object.keys(out[0] || {}).filter((c) => c !== "Time"));
-        setLoading(false);
-        
-        // Debug logging
-        console.log(`[CSV] Loaded ${out.length} total rows, ${Object.keys(out[0] || {}).length} columns`);
-        if (out.length > 0) {
-          const firstDay = new Date(String(out[0]["Time"])).toDateString();
-          const firstDayCount = out.filter(r => 
-            new Date(String(r["Time"])).toDateString() === firstDay
-          ).length;
-          console.log(`[CSV] Using first day data: ${firstDay} (${firstDayCount} rows)`);
-          console.log(`[CSV] First timestamp: ${out[0]["Time"]}`);
-          console.log(`[CSV] Last timestamp: ${out[out.length - 1]["Time"]}`);
-        }
+                setRows(out);
+                setColumns(Object.keys(out[0] || {}).filter((c) => c !== "Time"));
+                setLoading(false);
+                
+                // Debug logging
+                console.log(`[CSV] Loaded ${out.length} total rows, ${Object.keys(out[0] || {}).length} columns`);
+                console.log(`[CSV] Columns:`, Object.keys(out[0] || {}));
+                if (out.length > 0) {
+                  const firstDay = new Date(String(out[0]["Time"])).toDateString();
+                  const firstDayCount = out.filter(r => 
+                    new Date(String(r["Time"])).toDateString() === firstDay
+                  ).length;
+                  console.log(`[CSV] Using first day data: ${firstDay} (${firstDayCount} rows)`);
+                  console.log(`[CSV] First timestamp: ${out[0]["Time"]}`);
+                  console.log(`[CSV] Last timestamp: ${out[out.length - 1]["Time"]}`);
+                }
       },
       error: (e) => {
         if (!alive) return;
@@ -96,5 +99,16 @@ export function useClientCsv(src: string = "/Boiler11_1.csv") {
     return m;
   }, [rows, columns]);
 
-  return { rows, columns, byFeature, loading, error };
+  const latestISO = useMemo(() => {
+    let latest: string | null = null;
+    for (const arr of byFeature.values()) {
+      if (arr.length) {
+        const t = arr[arr.length - 1].t;
+        if (!latest || new Date(t) > new Date(latest)) latest = t;
+      }
+    }
+    return latest ?? null;
+  }, [byFeature]);
+
+  return { rows, columns, byFeature, loading, error, latestISO };
 }

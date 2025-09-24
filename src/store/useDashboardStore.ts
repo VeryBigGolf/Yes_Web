@@ -1,33 +1,29 @@
-import { create } from 'zustand'
-import { FeatureKey, TimeRange, Suggestion } from '@/types'
+import { create } from "zustand";
 
-interface DashboardState {
+type RangeKey = "15m" | "1h" | "8h" | "24h" | "all";
+
+type State = {
   // UI State
-  sidebarCollapsed: boolean
-  darkMode: boolean
-  currentPage: string
+  sidebarCollapsed: boolean;
+  darkMode: boolean;
+  currentPage: string;
   
   // Data State
-  selectedFeature: FeatureKey | null
-  timeRange: TimeRange
-  realtimeOn: boolean
-  
-  // Suggestions
-  suggestions: Suggestion[]
-  topSuggestions: Suggestion[]
-  
-  // Actions
-  setSidebarCollapsed: (collapsed: boolean) => void
-  setDarkMode: (dark: boolean) => void
-  setCurrentPage: (page: string) => void
-  setSelectedFeature: (feature: FeatureKey | null) => void
-  setTimeRange: (range: TimeRange) => void
-  setRealtimeOn: (on: boolean) => void
-  setSuggestions: (suggestions: Suggestion[]) => void
-  setTopSuggestions: (suggestions: Suggestion[]) => void
-}
+  selectedFeature: string | null;
+  timeRange: RangeKey;
+  realtimeOn: boolean;
+};
 
-export const useDashboardStore = create<DashboardState>((set, get) => ({
+type Actions = {
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  setDarkMode: (dark: boolean) => void;
+  setCurrentPage: (page: string) => void;
+  setSelectedFeature: (k: string) => void;
+  setTimeRange: (r: RangeKey) => void;
+  setRealtimeOn: (on: boolean) => void;
+};
+
+export const useDashboardStore = create<State & Actions>((set) => ({
   // Initial state
   sidebarCollapsed: false,
   darkMode: (() => {
@@ -40,10 +36,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   })(),
   currentPage: 'overview',
   selectedFeature: null,
-  timeRange: '1h',
+  timeRange: "1h",
   realtimeOn: false,
-  suggestions: [],
-  topSuggestions: [],
   
   // Actions
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
@@ -55,9 +49,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     }
   },
   setCurrentPage: (page) => set({ currentPage: page }),
-  setSelectedFeature: (feature) => set({ selectedFeature: feature }),
-  setTimeRange: (range) => set({ timeRange: range }),
+  setSelectedFeature: (k) => set({ selectedFeature: k }),
+  setTimeRange: (r) => set({ timeRange: r }),
   setRealtimeOn: (on) => set({ realtimeOn: on }),
-  setSuggestions: (suggestions) => set({ suggestions }),
-  setTopSuggestions: (topSuggestions) => set({ topSuggestions }),
-}))
+}));

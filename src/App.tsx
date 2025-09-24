@@ -9,6 +9,8 @@ import Overview from '@/pages/Overview'
 import TimeSeries from '@/pages/TimeSeries'
 import { Suggestions } from '@/pages/Suggestions'
 import { Settings } from '@/pages/Settings'
+import { DebugInfo } from '@/debug'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 function App() {
   const { currentPage, darkMode } = useDashboardStore()
@@ -36,6 +38,8 @@ function App() {
         return <Suggestions />
       case 'settings':
         return <Settings />
+      case 'debug':
+        return <DebugInfo />
       default:
         return <Overview />
     }
@@ -43,16 +47,18 @@ function App() {
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground">
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 min-w-0">
-          <Header />
-          {/* full-bleed content with light gutters */}
-          <div className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-6 max-w-full">
-            {renderPage()}
-          </div>
-        </main>
-      </div>
+              <div className="flex">
+                <Sidebar />
+                <main className="flex-1 min-w-0">
+                  <Header />
+                  <ErrorBoundary>
+                    {/* full-bleed content with light gutters */}
+                    <div className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-6 max-w-full">
+                      {renderPage()}
+                    </div>
+                  </ErrorBoundary>
+                </main>
+              </div>
 
       {/* Chat FAB */}
       <Button
